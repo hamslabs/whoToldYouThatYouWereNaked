@@ -14,22 +14,14 @@ All paths are relative to `newSystem/`. Run commands on your Mac unless noted ot
 
 ---
 
-## Step 1 — Download OS images
+## Step 1 — OS images
 
-Save both files into `images/`:
+Already in `images/`:
 
-| Board | Image | Source |
-|---|---|---|
-| RPi4 | `raspios-bookworm-arm64-lite.img` | https://www.raspberrypi.com/software/operating-systems/ → "Raspberry Pi OS Lite (64-bit)" |
-| Rock Pi4 | `armbian-trixie-rock4-minimal.img` | https://www.armbian.com/rock-pi-4/ → Debian Trixie → Minimal CLI |
-
-> **Rock Pi 4 variant**: Armbian has separate images for 4A, 4B, 4C, 4C+, and SE. Download the one matching your exact board model (printed on the board).
-
-Images may be downloaded as `.xz` compressed files. Decompress before flashing:
-```bash
-cd images/
-xz -d *.xz
-```
+| Board | File |
+|---|---|
+| RPi4 | `images/rpi4-os-lite-arm64.img.xz` |
+| Rock Pi4 Plus | `images/armbian-rockpi4-plus-trixie-minimal.img.xz` |
 
 ---
 
@@ -50,7 +42,7 @@ Look for your SD card by size (e.g. `32.0 GB`). Note the disk number — it will
 diskutil unmountDisk /dev/disk2
 
 # Flash — replace disk2 with your actual disk number
-sudo dd if=images/raspios-bookworm-arm64-lite.img of=/dev/rdisk2 bs=4m
+xzcat images/rpi4-os-lite-arm64.img.xz | sudo dd of=/dev/rdisk2 bs=4m
 
 # Press Ctrl+T at any time to see progress
 ```
@@ -70,7 +62,7 @@ diskutil eject /dev/disk2
 
 ```bash
 diskutil unmountDisk /dev/disk2
-sudo dd if=images/armbian-trixie-rock4-minimal.img of=/dev/rdisk2 bs=4m
+xzcat images/armbian-rockpi4-plus-trixie-minimal.img.xz | sudo dd of=/dev/rdisk2 bs=4m
 diskutil eject /dev/disk2
 ```
 
