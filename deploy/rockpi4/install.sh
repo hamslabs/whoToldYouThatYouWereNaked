@@ -1,8 +1,11 @@
 #!/bin/bash
 # Rock Pi4 one-time setup. Run as root after booting Armbian Debian Trixie Minimal CLI.
-# Prereqs: /etc/pair-id and /etc/pair-count exist; WiFi credentials configured during first-boot.
+# Prereqs: /etc/pair-id and /etc/pair-count exist.
 
 set -euo pipefail
+
+WIFI_SSID="gwart"
+WIFI_PASSWORD="ImNotNaked"
 
 PAIR_ID=$(cat /etc/pair-id)
 PAIR_COUNT=$(cat /etc/pair-count)
@@ -12,12 +15,15 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "=== Rock Pi4 install — pair ${PAIR_ID} ==="
 
-# ── Static IP via netplan (Armbian default) ───────────────────────────────────
+# ── WiFi + Static IP via netplan (Armbian default) ────────────────────────────
 WIFI_IFACE=$(ip link | grep -o 'wlan[0-9]' | head -1)
 if [ -z "$WIFI_IFACE" ]; then
     echo "ERROR: No WiFi interface found"
     exit 1
 fi
+
+# Remove any existing netplan configs to avoid conflicts
+rm -f /etc/netplan/*.yaml
 
 cat > /etc/netplan/01-static.yaml <<EOF
 network:
@@ -30,9 +36,10 @@ network:
       nameservers:
         addresses: [192.168.10.1]
       access-points:
-        "$(grep -r 'ssid' /etc/netplan/ 2>/dev/null | awk -F'"' '{print $2}' | head -1 || echo 'YOUR_SSID')":
-          password: "$(grep -r 'password' /etc/netplan/ 2>/dev/null | awk -F'"' '{print $2}' | head -1 || echo 'YOUR_PASSWORD')"
+        "${WIFI_SSID}":
+          password: "${WIFI_PASSWORD}"
 EOF
+chmod 600 /etc/netplan/01-static.yaml
 netplan apply
 
 # ── Hostname ──────────────────────────────────────────────────────────────────
@@ -63,5 +70,3 @@ echo "=== Done. Next steps ==="
 echo "1. Connect iPhone to router for internet access"
 echo "2. Run: tailscale up --authkey=<REUSABLE_KEY> --hostname=${HOSTNAME} --advertise-tags=tag:newsstream"
 echo "3. Reboot: sudo reboot"
-echo ""
-echo "NOTE: Edit /etc/netplan/01-static.yaml to set correct WiFi SSID/password if needed"
