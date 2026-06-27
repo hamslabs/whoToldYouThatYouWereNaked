@@ -1,0 +1,9 @@
+[Unit]
+Description=MPV stream health check (one-shot)
+After=display-stream.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/display-watchdog.sh
+StandardOutput=journal
+StandardError=journal

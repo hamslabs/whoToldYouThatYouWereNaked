@@ -1,0 +1,15 @@
+api:
+  address: :9997
+
+rtsp:
+  address: :8554
+
+paths:
+  stream:
+    source: rpiCamera
+    rpiCamera:
+      width: 1920
+      height: 1080
+      fps: 30
+      bitrate: 5000000
+      codec: H264

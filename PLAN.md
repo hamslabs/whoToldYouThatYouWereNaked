@@ -2,7 +2,7 @@
 
 ## Context
 
-Building a turnkey embedded video streaming system for a local WiFi network. 5–6 identical pairs of boards, each pair consisting of an RPi4 (camera capture + encode + stream) and a Rock Pi 4 (receive + decode + HDMI display). The network is dedicated to this traffic only. The system must boot autonomously, synchronize per-pair startup, and self-heal on any error — no human intervention expected in normal operation.
+Building a turnkey embedded video streaming system for a local WiFi network. 5–6 identical pairs of boards: RPi4 (camera capture + encode + stream) paired with Rock Pi 4 (receive + decode + HDMI display). Network is dedicated to this traffic. System must boot autonomously, synchronize per-pair startup, and self-heal without human intervention.
 
 ---
 
@@ -11,10 +11,10 @@ Building a turnkey embedded video streaming system for a local WiFi network. 5�
 ```
 Pair X
 ┌──────────────────────────────┐      WiFi (dedicated)      ┌──────────────────────────────┐
-│  RPi4                        │  ───── RTSP H.264 ─────►  │  Rock Pi 4                   │
-│  192.168.10.1X               │                             │  192.168.10.2X               │
-│                              │  ◄──── ready? HTTP ──────  │                              │
-│  Pi Camera → mediamtx        │                             │  MPV → DRM → HDMI            │
+│  RPi4  192.168.10.1X         │  ───── RTSP H.264 ─────►  │  Rock Pi 4  192.168.10.2X    │
+│                              │                             │                              │
+│  Pi Camera → mediamtx        │  ◄──── ready? HTTP ──────  │  MPV → DRM → HDMI            │
+│  status-server.py :7777      │                             │  readiness-server.py :7777   │
 └──────────────────────────────┘                             └──────────────────────────────┘
 ```
 
@@ -26,15 +26,15 @@ X = pair number 1–6, stored in `/etc/pair-id` on each board.
 
 | Concern | Choice | Reason |
 |---|---|---|
-| OS (RPi4) | Raspberry Pi OS Lite 64-bit | Best libcamera/hardware H.264 encoder support |
-| OS (Rock Pi4) | Armbian (Debian Trixie, Minimal CLI) | Ubuntu Jammy no longer available for this board; Debian Trixie is the current headless option |
+| OS (RPi4) | Raspberry Pi OS Lite 64-bit **Bookworm** | Current release; best libcamera/hardware H.264 encoder support |
+| OS (Rock Pi4) | Armbian **Debian Trixie, Minimal CLI** | Ubuntu Jammy no longer available; Debian Trixie is the current headless option |
 | Streaming | mediamtx (RTSP server on RPi4) | Native RPi camera source, no extra pipeline code needed |
-| Video codec | H.264 via RPi4 hardware encoder | Low CPU, Rock Pi4 hardware decode supported |
+| Video codec | H.264 via RPi4 VideoCore hardware encoder | Low CPU; Rock Pi4 hardware decode supported |
 | Resolution | 1920×1080 @ 30fps, ~5 Mbps | ~30 Mbps total across 6 pairs — well within WiFi 5 budget |
 | Display | MPV with `--vo=drm` | No desktop environment needed; direct framebuffer access |
 | Network | Static IPs per pair | No DNS/mDNS dependency; deterministic at boot |
 | Startup sync | HTTP readiness probe (Python) | Rock Pi4 signals ready; RPi4 polls before streaming |
-| Auto-restart | systemd `Restart=always` + watchdog | Two-layer: process restart + stream-health check |
+| Auto-restart | systemd `Restart=always` + watchdog timer | Two-layer: process restart + stream-health check |
 
 ---
 
@@ -56,72 +56,125 @@ X = pair number 1–6, stored in `/etc/pair-id` on each board.
 ```
 deploy/
 ├── rpi4/
-│   ├── install.sh                  # one-time setup; reads /etc/pair-id
+│   ├── install.sh
 │   ├── config/
-│   │   └── mediamtx.yml            # RTSP server + RPi camera source config
-│   └── systemd/
-│       ├── camera-stream.service   # mediamtx; depends on network-online.target
-│       └── stream-watchdog.service # watchdog timer unit
+│   │   └── mediamtx.yml
+│   ├── systemd/
+│   │   ├── camera-stream.service     # mediamtx; depends on network-online.target
+│   │   ├── stream-watchdog.service   # one-shot health check (run by timer)
+│   │   ├── stream-watchdog.timer     # fires every 30s
+│   │   └── status-server.service     # HTTP :7777 status endpoint
 │   └── scripts/
-│       ├── camera-start.sh         # pre-start: poll Rock Pi readiness endpoint
-│       └── watchdog.sh             # check ffprobe stream health; restart if stalled
-└── rockpi4/
-    ├── install.sh
-    ├── systemd/
-    │   ├── readiness-server.service  # tiny HTTP server (Python) on :7777
-    │   ├── display-stream.service    # MPV fullscreen DRM display
-    │   └── display-watchdog.service  # watchdog timer unit
-    └── scripts/
-        ├── readiness-server.py       # responds 200 OK when board is ready
-        ├── display-start.sh          # pre-start: wait for mediamtx stream to appear
-        └── watchdog.sh               # check MPV is alive + frames advancing; restart if stuck
+│       ├── camera-start.sh           # ExecStartPre: polls Rock Pi4 /ready
+│       ├── watchdog.sh               # queries mediamtx API; kills+restarts if stalled
+│       └── status-server.py          # /ready (always 200) + /status JSON
+├── rockpi4/
+│   ├── install.sh
+│   ├── systemd/
+│   │   ├── readiness-server.service  # HTTP :7777 readiness + status
+│   │   ├── display-stream.service    # MPV fullscreen DRM display
+│   │   ├── display-watchdog.service  # one-shot health check (run by timer)
+│   │   └── display-watchdog.timer    # fires every 30s
+│   └── scripts/
+│       ├── readiness-server.py       # /ready 200 OK + /status JSON
+│       ├── display-start.sh          # ExecStartPre: clears DRM framebuffer
+│       └── watchdog.sh               # checks MPV IPC time-pos; kills+restarts if frozen
+└── dashboard/
+    ├── server.py                     # aggregates /status from all pairs, serves UI
+    └── index.html                    # auto-refresh table; no JS framework
 ```
 
 ---
 
 ## Startup Sequence (per pair)
 
-1. Both boards power on simultaneously.
-2. **Rock Pi4** boots → `readiness-server.service` starts (Python HTTP on `:7777`) → `display-stream.service` starts MPV in reconnect loop waiting for `rtsp://192.168.10.1X:8554/stream`.
-3. **RPi4** boots → `camera-start.sh` polls `http://192.168.10.2X:7777/ready` every 2s (timeout: 60s).
-4. Once Rock Pi4 responds 200, RPi4 starts `mediamtx` → Pi Camera begins capture → RTSP stream goes live.
-5. MPV on Rock Pi4 connects and displays fullscreen.
+```
+t=0   Both boards power on simultaneously
+      │
+      ├─ Rock Pi4: readiness-server.service starts (Python HTTP :7777)
+      │            display-stream.service starts MPV → enters reconnect loop
+      │            (MPV polls rtsp://192.168.10.1X:8554/stream every few seconds)
+      │
+      └─ RPi4: camera-start.sh polls http://192.168.10.2X:7777/ready every 2s
+               (timeout 60s; fail-open after timeout so camera still streams)
+                    │
+                    └─ 200 OK received → mediamtx starts → RTSP goes live
+                                          │
+                                          └─ MPV connects → fullscreen display
+```
 
-If Rock Pi4 never responds within 60s, RPi4 starts anyway (fail-open) so a display failure doesn't prevent recording.
+**Fail-open**: If Rock Pi4 never responds within 60s, RPi4 starts mediamtx anyway so a display-side failure doesn't prevent capture.
 
 ---
 
 ## Auto-Restart Strategy
 
 ### Layer 1 — systemd
-All services use:
+
+All services:
 ```ini
 Restart=always
 RestartSec=5
 ```
 
-### Layer 2 — Watchdog (runs every 30s via systemd timer)
+### Layer 2 — Watchdog (systemd timer, every 30s)
 
-**RPi4 watchdog** (`watchdog.sh`):
-- Check `mediamtx` process is running.
-- Run `ffprobe rtsp://localhost:8554/stream` — if it times out or errors, kill mediamtx and let systemd restart it.
-- Timeout threshold: 10s of no stream data = stall.
-
-**Rock Pi4 watchdog** (`watchdog.sh`):
-- Check MPV process is running.
-- Query MPV IPC socket (`--input-ipc-server=/tmp/mpvsocket`) for `video-params/w` — if socket unresponsive or returns null for >15s, kill MPV and let systemd restart it.
-
-### MPV reconnect flags (Rock Pi4)
-```
---loop=inf
---stream-open-filename=rtsp://192.168.10.1X:8554/stream
---profile=low-latency
---no-cache
---rtsp-transport=tcp
---keep-open=yes
+**RPi4 `watchdog.sh`** — uses mediamtx's built-in HTTP API (no ffprobe, no extra readers):
+```bash
+#!/bin/bash
+result=$(curl -sf --max-time 5 http://localhost:9997/v3/paths/list)
+# mediamtx returns tracks:[] when camera isn't encoding
+tracks=$(echo "$result" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d['items'][0]['tracks'])" 2>/dev/null)
+if [ -z "$tracks" ] || [ "$tracks" = "[]" ]; then
+    systemctl restart camera-stream
+fi
 ```
 
-MPV will automatically reconnect when the stream comes back after an RPi4 restart — no Rock Pi4 restart needed in that case.
+**Rock Pi4 `watchdog.sh`** — compares `time-pos` across two 15s samples to detect frozen video:
+```bash
+#!/bin/bash
+STATE_FILE=/run/mpv-watchdog-pos
+get_pos() {
+    echo '{"command":["get_property","time-pos"]}' \
+        | socat -t2 - UNIX-CONNECT:/tmp/mpvsocket 2>/dev/null \
+        | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('data',''))" 2>/dev/null
+}
+pos=$(get_pos)
+prev=$(cat "$STATE_FILE" 2>/dev/null || echo "")
+echo "$pos" > "$STATE_FILE"
+
+# Only flag as stuck if MPV has a position (stream is connected) but it hasn't advanced
+if [ -n "$pos" ] && [ "$pos" = "$prev" ]; then
+    systemctl restart display-stream
+fi
+```
+
+The watchdog runs every 30s; consecutive equal `time-pos` values (two 30s intervals apart) mean the stream is frozen → restart.
+
+### MPV command (Rock Pi4)
+
+```bash
+mpv rtsp://192.168.10.1X:8554/stream \
+    --vo=drm \
+    --fullscreen \
+    --profile=low-latency \
+    --cache=no \
+    --rtsp-transport=tcp \
+    --loop=inf \
+    --keep-open=yes \
+    --input-ipc-server=/tmp/mpvsocket
+```
+
+> **Note**: `--stream-open-filename` is not a valid MPV flag — the RTSP URL is the first positional argument. `--cache=no` replaces the deprecated `--no-cache`. `--loop=inf` + `--keep-open=yes` cause MPV to reconnect automatically when the stream drops; no Rock Pi4 restart needed when RPi4 comes back.
+
+### display-start.sh (Rock Pi4 ExecStartPre)
+
+Clears the DRM framebuffer so no stale frame shows during reconnect:
+```bash
+#!/bin/bash
+# Clear primary framebuffer to black before MPV takes over
+dd if=/dev/zero of=/dev/fb0 bs=1M count=8 2>/dev/null || true
+```
 
 ---
 
@@ -129,6 +182,9 @@ MPV will automatically reconnect when the stream comes back after an RPi4 restar
 
 ```yaml
 # mediamtx.yml
+api:
+  address: :9997          # used by watchdog and status-server
+
 rtsp:
   address: :8554
 
@@ -143,139 +199,124 @@ paths:
       codec: H264
 ```
 
-mediamtx handles the libcamera integration natively — no separate capture pipeline script.
+---
+
+## Status Server
+
+Both boards expose port 7777. On Rock Pi4 this is `readiness-server.py` (already needed for startup sync). On RPi4 it's `status-server.py` (new file, same structure).
+
+| Path | Returns |
+|---|---|
+| `GET /ready` | `200 OK` plain text (Rock Pi4 only; RPi4 always returns 200 for symmetry) |
+| `GET /status` | JSON: `{"pair_id": N, "role": "rpi4"\|"rockpi4", "stream_up": true\|false, "uptime_s": N, "fps": N, "bitrate_kbps": N, "last_error": "..."}` |
+
+- **RPi4**: `stream_up` from `GET localhost:9997/v3/paths/list` (non-empty `tracks`). `fps`/`bitrate_kbps` from the same response.
+- **Rock Pi4**: `stream_up` from MPV IPC `time-pos` being non-null. `fps` from `estimated-vf-fps`.
+
+### Dashboard
+
+`dashboard/server.py` aggregates all pairs' `/status` every 5s and serves `index.html`. Reads `/etc/pair-count` (set by install.sh) to know how many boards to query. Runs on any board or laptop on the Tailscale network.
 
 ---
 
 ## Installation
 
-Each board needs only two things set before running `install.sh`:
-1. `/etc/pair-id` — a single digit (1–6)
-2. WiFi credentials in the OS image (set during flash via `raspi-config` or Armbian first-boot)
+Each board requires before running `install.sh`:
+1. `/etc/pair-id` — single digit 1–6
+2. `/etc/pair-count` — total number of pairs (5 or 6) — **needed by dashboard**
+3. WiFi credentials baked into OS image at flash time
 
-`install.sh` on each board:
-- Reads `PAIR_ID=$(cat /etc/pair-id)`
-- Configures static IP (`/etc/dhcpcd.conf` on RPi4, `/etc/netplan/` on Armbian)
-- Installs mediamtx (RPi4) or MPV (Rock Pi4) via apt/binary
-- Installs Tailscale and sets hostname (`rpi4-$PAIR_ID` or `rockpi4-$PAIR_ID`)
-- Writes systemd units and enables them
-- Reboots
+### RPi4 `install.sh` steps
 
-After first boot, run `tailscale up --authkey=<reusable-key> --hostname=<board-hostname>` once per board (or bake the auth key into `install.sh`).
+```bash
+PAIR_ID=$(cat /etc/pair-id)
+RPI_IP="192.168.10.1${PAIR_ID}"
+ROCK_IP="192.168.10.2${PAIR_ID}"
 
----
+# Static IP — Raspberry Pi OS Bookworm uses NetworkManager (not dhcpcd)
+nmcli con mod "$(nmcli -g NAME con show | head -1)" \
+    ipv4.method manual \
+    ipv4.addresses "${RPI_IP}/24" \
+    ipv4.gateway 192.168.10.1 \
+    ipv4.dns 192.168.10.1
 
-## Verification
+# Install mediamtx (download latest binary from GitHub releases)
+# Install python3, socat, curl (apt)
+# Install Tailscale
+curl -fsSL https://tailscale.com/install.sh | sh
+tailscale up --authkey=<REUSABLE_KEY> --hostname="rpi4-${PAIR_ID}"
 
-1. Flash both boards, set pair-id=1, boot on the dedicated WiFi network.
-2. SSH into RPi4 (`192.168.10.11`): `systemctl status camera-stream` should show `active (running)`.
-3. SSH into Rock Pi4 (`192.168.10.21`): `systemctl status display-stream` should show `active (running)`.
-4. HDMI output on Rock Pi4 should show live 1080p video.
-5. Kill `mediamtx` on RPi4 manually → verify it restarts within 5s and Rock Pi4 reconnects automatically.
-6. Kill MPV on Rock Pi4 manually → verify it restarts within 5s.
-7. Unplug RPi4 power → verify Rock Pi4 enters reconnect loop → replug RPi4 → verify stream resumes without intervention.
-8. Repeat for all 6 pairs simultaneously to confirm no WiFi congestion issues.
-
----
-
-## Status Web Server
-
-Each board exposes a lightweight HTTP status endpoint so the whole system can be monitored from any device on the Tailscale network (phone, laptop, etc.).
-
-### Per-board status endpoint (port 7777, same as readiness server)
-
-Extend the existing `readiness-server.py` on both board types to serve:
-
-| Path | Returns |
-|---|---|
-| `GET /ready` | `200 OK` (Rock Pi4 ready to receive) |
-| `GET /status` | JSON: `{pair_id, role, stream_up, uptime_s, fps, bitrate_kbps, last_error}` |
-
-- **RPi4**: queries mediamtx's built-in HTTP API (`http://localhost:9997/v3/paths/list`) for stream stats.
-- **Rock Pi4**: queries MPV IPC socket for `video-params/w`, `estimated-vf-fps`, and `stream-pos`.
-
-### Central dashboard (optional, runs anywhere on Tailscale)
-
-A single-page HTML dashboard (`dashboard/index.html` + `dashboard/server.py`) that:
-- Polls all 6 boards' `/status` endpoints every 5s
-- Shows a table: pair | RPi4 status | Rock Pi4 status | fps | bitrate | last error
-- Auto-refreshes; green/red indicators per stream
-- Served by a tiny Python HTTP server — runs on any board or a laptop
-
-```
-deploy/
-└── dashboard/
-    ├── server.py        # aggregates /status from all pairs, serves the UI
-    └── index.html       # auto-refresh table, no JS framework needed
+# Copy config/scripts/units; sed-replace 1X/2X placeholders with actual IPs
+# systemctl enable + start all units
 ```
 
-The dashboard reads `/etc/pair-count` (value: 5 or 6) and `/etc/pair-id` to know which peers to query.
+### Rock Pi4 `install.sh` steps
 
----
-
-## Future: Face Detection (RPi5 + AI Kit)
-
-**Not implemented now** — but the architecture is designed to accommodate it without changes.
-
-### How it fits
-
-mediamtx natively supports **multiple concurrent readers** on the same RTSP path. The AI board simply opens an additional RTSP connection to any (or all) RPi4 streams:
-
-```
-RPi4-1 (mediamtx) ──► Rock Pi4-1 (display)
-                   ──► RPi5 AI board (face detection)  ← second reader, zero impact on display
+Same structure; static IP via `/etc/netplan/` (Armbian uses netplan):
+```yaml
+# /etc/netplan/01-static.yaml
+network:
+  version: 2
+  ethernets: {}
+  wifis:
+    wlan0:
+      dhcp4: false
+      addresses: [192.168.10.2X/24]
+      gateway4: 192.168.10.1
 ```
 
-### What to keep in mind during implementation
-
-- Do **not** put any AI processing on the streaming RPi4s or display Rock Pi4s — keep them single-purpose.
-- The AI board (RPi5 + Hailo-8L) will subscribe to RTSP streams from mediamtx; no changes needed to the sender side.
-- mediamtx path config already supports multiple readers by default — no extra configuration needed.
-- When the time comes, add an `ai/` section to `deploy/` with the RPi5 pipeline (GStreamer + Hailo SDK). The AI board gets its own Tailscale node and its own pair-id range (e.g., `ai-1`).
-- Consider whether face detection output (bounding boxes, identities) needs to be overlaid on the Rock Pi4 display or just logged — this determines whether the data path eventually loops back to the display side.
+Both scripts use `sed` to replace `1X`/`2X` placeholders in copied config files with the actual pair-id digit.
 
 ---
 
 ## Tailscale (Remote Management)
 
-Tailscale runs on all boards for SSH access and remote management. It does **not** affect stream performance because:
-- Stream traffic flows over local IPs (`192.168.10.x`) — Tailscale never sees it.
-- Tailscale on ARM uses ~0.1–2% CPU at idle with no data routed through it.
-- No WireGuard encryption overhead on the video path.
+Stream traffic uses local IPs (`192.168.10.x`) — Tailscale never touches it. Zero impact on video performance.
 
-### Installation
-`install.sh` installs Tailscale via the official script on both RPi OS and Armbian:
-```bash
-curl -fsSL https://tailscale.com/install.sh | sh
+**Internet access**: Router is normally air-gapped. Connect iPhone via USB for internet on-demand (confirmed supported by router).
+
+**Use iPhone for**:
+- Initial Tailscale registration (one-time per board)
+- Tailscale key renewal (~6 months)
+- OS/package updates
+
+**Without iPhone**: Boards that have previously registered can route WireGuard traffic to each other over the local subnet (Tailscale peer-to-peer). External access from outside the network requires iPhone.
+
+**Tag**: `tag:newsstream` for ACL grouping. Hostnames: `rpi4-1` … `rpi4-6`, `rockpi4-1` … `rockpi4-6`.
+
+---
+
+## Verification
+
+1. Flash pair 1, set `/etc/pair-id=1` and `/etc/pair-count=1`, boot both boards.
+2. `ssh pi@192.168.10.11` → `systemctl status camera-stream` — expect `active (running)`.
+3. `ssh user@192.168.10.21` → `systemctl status display-stream` — expect `active (running)`.
+4. HDMI on Rock Pi4 shows live 1080p video.
+5. **Watchdog test**: `systemctl stop camera-stream` on RPi4 → verify systemd restarts it within 5s.
+6. **MPV reconnect test**: `kill $(pidof mpv)` on Rock Pi4 → verify MPV restarts within 5s.
+7. **Power-cycle test**: Pull RPi4 power → Rock Pi4 enters reconnect loop → restore RPi4 power → verify stream resumes without touching Rock Pi4.
+8. **Watchdog timer test**: `systemctl start stream-watchdog` on RPi4 (manual trigger) → confirm it exits 0 when stream is healthy.
+9. **Scale test**: Repeat with all 6 pairs running simultaneously; confirm no WiFi congestion (monitor with `iw dev wlan0 station dump` on router).
+10. **Status endpoint**: `curl http://192.168.10.11:7777/status` → valid JSON with `stream_up: true`.
+
+---
+
+## Future: Face Detection (RPi5 + AI Kit)
+
+mediamtx supports multiple concurrent readers. The AI board subscribes to existing RTSP paths — zero changes to sender or display side:
+
+```
+RPi4-1 (mediamtx) ──► Rock Pi4-1 (display)
+                   ──► RPi5 AI board (face detection)  ← second reader, no impact
 ```
 
-### Configuration
-Each board is registered once manually (`tailscale up --authkey=<key>`) during initial setup. After that, it auto-reconnects on boot.
-
-### Internet access via iPhone USB tethering
-
-The router is normally air-gapped. Internet is provided on-demand by connecting an iPhone via USB to the router (confirmed supported). When the iPhone is connected, the router's WAN is the iPhone's cellular connection and all boards reach the internet normally.
-
-**When to connect the iPhone:**
-- Initial Tailscale registration for all boards (one-time setup)
-- Tailscale key renewal (~every 6 months — Tailscale will warn in advance)
-- OS/package updates (scheduled maintenance)
-- Any other internet-dependent operation
-
-**When iPhone is disconnected (normal operation):**
-- All video streams are unaffected — they use local IPs only.
-- Tailscale nodes that have previously exchanged keys maintain direct WireGuard tunnels to each other on the local subnet, so SSH between boards still works.
-- External access (from a phone or laptop outside the network) is unavailable until iPhone is reconnected.
-
-### Key notes
-- Use a Tailscale tag (e.g. `tag:newsstream`) to group all boards in the Tailscale ACL for easy access control.
-- Tailscale hostname convention: `rpi4-1`, `rpi4-2`, …, `rockpi4-1`, `rockpi4-2`, … derived from pair-id.
-- Headscale (self-hosted coordination server) is **not needed** — the iPhone tethering approach covers all internet-dependent Tailscale operations without the complexity of a self-hosted server.
+Add `deploy/ai/` when ready (GStreamer + Hailo SDK). AI board gets its own Tailscale node.
 
 ---
 
 ## Open Items (deferred)
 
-The user mentioned additional requirements not yet specified. Implementation should be kept modular so these can be layered on:
-- Possible: audio support, channel switching, stream recording.
-- Remote management via Tailscale SSH is now baseline; decide whether to add a web dashboard later.
+- Audio support
+- Channel switching
+- Stream recording
+- Web dashboard deployment target (currently runs on any Tailscale node)

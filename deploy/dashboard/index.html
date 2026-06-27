@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stream Monitor</title>
+<style>
+  body { font-family: monospace; background: #111; color: #eee; margin: 2rem; }
+  h1 { color: #aaa; font-size: 1.2rem; margin-bottom: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; }
+  th { text-align: left; color: #888; padding: 0.4rem 1rem 0.4rem 0; border-bottom: 1px solid #333; }
+  td { padding: 0.5rem 1rem 0.5rem 0; border-bottom: 1px solid #222; vertical-align: top; }
+  .up   { color: #4c4; }
+  .down { color: #c44; }
+  .row-pair td:first-child { color: #888; font-size: 0.85rem; padding-top: 1rem; }
+  #updated { color: #555; font-size: 0.8rem; margin-top: 1.5rem; }
+</style>
+</head>
+<body>
+<h1>Stream Monitor</h1>
+<table>
+  <thead>
+    <tr>
+      <th>Pair</th>
+      <th>Board</th>
+      <th>Stream</th>
+      <th>FPS</th>
+      <th>Uptime</th>
+      <th>Error</th>
+    </tr>
+  </thead>
+  <tbody id="tbody"></tbody>
+</table>
+<div id="updated">Loading…</div>
+
+<script>
+function fmt_uptime(s) {
+  if (!s && s !== 0) return '—';
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  return [h, m, sec].map(x => String(x).padStart(2, '0')).join(':');
+}
+
+function render(data) {
+  const pairs = data._pair_count || 6;
+  const tbody = document.getElementById('tbody');
+  const rows = [];
+
+  for (let i = 1; i <= pairs; i++) {
+    const rpi = data[`rpi4-${i}`] || {};
+    const rock = data[`rockpi4-${i}`] || {};
+
+    rows.push(`<tr class="row-pair"><td colspan="6">Pair ${i}</td></tr>`);
+
+    for (const [label, d] of [['RPi4', rpi], ['Rock Pi4', rock]]) {
+      const up = d.stream_up;
+      const status = up ? '<span class="up">● UP</span>' : '<span class="down">● DOWN</span>';
+      const fps = d.fps != null ? d.fps.toFixed(1) : '—';
+      const uptime = fmt_uptime(d.uptime_s);
+      const err = d.last_error || d.error || '';
+      rows.push(`<tr>
+        <td></td>
+        <td>${label}</td>
+        <td>${status}</td>
+        <td>${fps}</td>
+        <td>${uptime}</td>
+        <td style="color:#a44;font-size:0.85rem">${err}</td>
+      </tr>`);
+    }
+  }
+
+  tbody.innerHTML = rows.join('');
+
+  const ts = data._updated ? new Date(data._updated * 1000).toLocaleTimeString() : '—';
+  document.getElementById('updated').textContent = `Last updated: ${ts}`;
+}
+
+async function poll() {
+  try {
+    const r = await fetch('/api/status');
+    if (r.ok) render(await r.json());
+  } catch (e) {
+    document.getElementById('updated').textContent = 'Error fetching status';
+  }
+}
+
+poll();
+setInterval(poll, 5000);
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+[Unit]
+Description=Camera stream health check (one-shot)
+After=camera-stream.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/stream-watchdog.sh
+StandardOutput=journal
+StandardError=journal

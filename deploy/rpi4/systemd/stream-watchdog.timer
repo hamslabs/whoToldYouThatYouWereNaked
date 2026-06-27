@@ -1,0 +1,11 @@
+[Unit]
+Description=Run camera stream watchdog every 30s
+Requires=camera-stream.service
+
+[Timer]
+OnBootSec=60s
+OnUnitActiveSec=30s
+Unit=stream-watchdog.service
+
+[Install]
+WantedBy=timers.target
