@@ -1,0 +1,16 @@
+[Unit]
+Description=Camera RTSP stream (mediamtx)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStartPre=/usr/local/bin/camera-start.sh
+ExecStart=/usr/local/bin/mediamtx /etc/mediamtx/mediamtx.yml
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

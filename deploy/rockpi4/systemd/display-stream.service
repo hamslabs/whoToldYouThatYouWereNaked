@@ -1,0 +1,25 @@
+[Unit]
+Description=HDMI display stream (MPV via DRM)
+After=network-online.target readiness-server.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStartPre=/usr/local/bin/display-start.sh
+ExecStart=/bin/bash -c 'PAIR_ID=$(cat /etc/pair-id); exec mpv \
+    rtsp://192.168.10.1${PAIR_ID}:8554/stream \
+    --vo=drm \
+    --fullscreen \
+    --profile=low-latency \
+    --cache=no \
+    --rtsp-transport=tcp \
+    --loop=inf \
+    --keep-open=yes \
+    --input-ipc-server=/tmp/mpvsocket'
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
