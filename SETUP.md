@@ -9,8 +9,11 @@ All paths are relative to `newSystem/`. Run commands on your Mac unless noted ot
 - RPi4 + Rock Pi 4 boards
 - 2× micro SD card (16GB+ recommended)
 - Mac with SD card reader (or USB adapter)
+- **2× Ethernet cables** (for initial setup — boards connect via Ethernet first, then switch to WiFi after install)
 - HDMI cable + monitor (Rock Pi4 verification)
 - iPhone + cable (for router internet access during Tailscale setup)
+
+> **Why Ethernet?** The boards have no WiFi credentials when first flashed. `install.sh` is what configures WiFi — but you need to SSH in to run it. Plug each board into the router via Ethernet for the initial session. After `install.sh` runs and the board reboots, it connects via WiFi automatically and Ethernet can be unplugged.
 
 ---
 
@@ -72,7 +75,7 @@ diskutil eject /dev/disk2
 
 ## Step 3 — First boot: set pair ID
 
-Insert cards and power on both boards. Wait ~60s for them to boot. Both boards will grab DHCP addresses initially.
+Plug both boards into the router via **Ethernet**, then power them on. Wait ~60s to boot. Both will grab DHCP addresses over Ethernet.
 
 ### Find each board's IP
 
@@ -169,7 +172,7 @@ On each board:
 sudo reboot
 ```
 
-After reboot, SSH back in using the **static IP** (no more DHCP):
+After reboot the board connects via **WiFi** and gets its static IP. You can unplug the Ethernet cable now. SSH back in using the static IP:
 
 | Pair | RPi4 IP | Rock Pi4 IP |
 |---|---|---|
