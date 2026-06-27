@@ -1,8 +1,11 @@
 #!/bin/bash
 # RPi4 one-time setup. Run as root after booting Raspberry Pi OS Lite Bookworm.
-# Prereqs: /etc/pair-id and /etc/pair-count exist; WiFi credentials are already in the image.
+# Prereqs: /etc/pair-id and /etc/pair-count exist.
 
 set -euo pipefail
+
+WIFI_SSID="gwart"
+WIFI_PASSWORD="ImNotNaked"
 
 PAIR_ID=$(cat /etc/pair-id)
 PAIR_COUNT=$(cat /etc/pair-count)
@@ -13,18 +16,28 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "=== RPi4 install — pair ${PAIR_ID} ==="
 
-# ── Static IP via NetworkManager (Bookworm default) ──────────────────────────
-CON_NAME=$(nmcli -g NAME con show | grep -i wifi | head -1)
-if [ -z "$CON_NAME" ]; then
-    echo "ERROR: No WiFi connection found in NetworkManager"
-    exit 1
+# ── WiFi + Static IP via NetworkManager (Bookworm default) ───────────────────
+if nmcli -g NAME con show | grep -qx "$WIFI_SSID"; then
+    nmcli con mod "$WIFI_SSID" \
+        wifi-sec.key-mgmt wpa-psk \
+        wifi-sec.psk "$WIFI_PASSWORD" \
+        ipv4.method manual \
+        ipv4.addresses "${RPI_IP}/24" \
+        ipv4.gateway 192.168.10.1 \
+        ipv4.dns 192.168.10.1
+else
+    nmcli con add type wifi \
+        con-name "$WIFI_SSID" \
+        ifname wlan0 \
+        ssid "$WIFI_SSID" \
+        wifi-sec.key-mgmt wpa-psk \
+        wifi-sec.psk "$WIFI_PASSWORD" \
+        ipv4.method manual \
+        ipv4.addresses "${RPI_IP}/24" \
+        ipv4.gateway 192.168.10.1 \
+        ipv4.dns 192.168.10.1
 fi
-nmcli con mod "$CON_NAME" \
-    ipv4.method manual \
-    ipv4.addresses "${RPI_IP}/24" \
-    ipv4.gateway 192.168.10.1 \
-    ipv4.dns 192.168.10.1
-nmcli con up "$CON_NAME"
+nmcli con up "$WIFI_SSID"
 
 # ── Hostname ──────────────────────────────────────────────────────────────────
 hostnamectl set-hostname "$HOSTNAME"
