@@ -37,7 +37,7 @@ else
         ipv4.gateway 192.168.10.1 \
         ipv4.dns 192.168.10.1
 fi
-nmcli con up "$WIFI_SSID"
+nmcli con up "$WIFI_SSID" || echo "WiFi not in range yet — will connect automatically after reboot"
 
 # ── Hostname ──────────────────────────────────────────────────────────────────
 hostnamectl set-hostname "$HOSTNAME"
