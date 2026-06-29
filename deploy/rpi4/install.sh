@@ -15,6 +15,10 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "=== RPi4 install — pair ${PAIR_ID} ==="
 
+# ── Ensure WiFi radio is unblocked ───────────────────────────────────────────
+rfkill unblock wifi
+nmcli radio wifi on
+
 # ── WiFi + Static IP via NetworkManager (Bookworm default) ───────────────────
 if nmcli -g NAME con show | grep -qx "$WIFI_SSID"; then
     nmcli con mod "$WIFI_SSID" \
