@@ -5,7 +5,6 @@
 set -euo pipefail
 
 WIFI_SSID="gwart"
-WIFI_PASSWORD="ImNotNaked"
 
 PAIR_ID=$(cat /etc/pair-id)
 PAIR_COUNT=$(cat /etc/pair-count)
@@ -19,8 +18,6 @@ echo "=== RPi4 install — pair ${PAIR_ID} ==="
 # ── WiFi + Static IP via NetworkManager (Bookworm default) ───────────────────
 if nmcli -g NAME con show | grep -qx "$WIFI_SSID"; then
     nmcli con mod "$WIFI_SSID" \
-        wifi-sec.key-mgmt wpa-psk \
-        wifi-sec.psk "$WIFI_PASSWORD" \
         ipv4.method manual \
         ipv4.addresses "${RPI_IP}/24" \
         ipv4.gateway 192.168.10.1 \
@@ -30,8 +27,6 @@ else
         con-name "$WIFI_SSID" \
         ifname wlan0 \
         ssid "$WIFI_SSID" \
-        wifi-sec.key-mgmt wpa-psk \
-        wifi-sec.psk "$WIFI_PASSWORD" \
         ipv4.method manual \
         ipv4.addresses "${RPI_IP}/24" \
         ipv4.gateway 192.168.10.1 \
