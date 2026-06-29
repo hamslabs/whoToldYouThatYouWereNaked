@@ -47,7 +47,7 @@ apt-get update -qq
 apt-get install -y -qq curl python3 socat
 
 # ── Install mediamtx ─────────────────────────────────────────────────────────
-MEDIAMTX_VERSION="v1.9.1"
+MEDIAMTX_VERSION="v1.19.2"
 ARCH="arm64"
 TARBALL="mediamtx_${MEDIAMTX_VERSION}_linux_${ARCH}.tar.gz"
 curl -fsSL "https://github.com/bluenviron/mediamtx/releases/download/${MEDIAMTX_VERSION}/${TARBALL}" \
