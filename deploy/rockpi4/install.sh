@@ -14,31 +14,6 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "=== Rock Pi4 install — pair ${PAIR_ID} ==="
 
-# ── WiFi + Static IP via netplan (Armbian default) ────────────────────────────
-WIFI_IFACE=$(ip link | grep -o 'wlan[0-9]' | head -1)
-if [ -z "$WIFI_IFACE" ]; then
-    echo "ERROR: No WiFi interface found"
-    exit 1
-fi
-
-cat > /etc/netplan/01-wifi-static.yaml <<EOF
-network:
-  version: 2
-  wifis:
-    ${WIFI_IFACE}:
-      dhcp4: false
-      addresses: [${ROCK_IP}/24]
-      nameservers:
-        addresses: [192.168.10.1]
-      routes:
-        - to: default
-          via: 192.168.10.1
-      access-points:
-        "${WIFI_SSID}": {}
-EOF
-chmod 600 /etc/netplan/01-wifi-static.yaml
-# netplan apply runs on reboot — applying now would drop the Ethernet SSH session
-
 # ── Hostname ──────────────────────────────────────────────────────────────────
 hostnamectl set-hostname "$HOSTNAME"
 
@@ -61,6 +36,29 @@ systemctl daemon-reload
 systemctl enable readiness-server.service
 systemctl enable display-stream.service
 systemctl enable display-watchdog.timer
+
+# ── WiFi + Static IP via netplan — written last so it doesn't disrupt install ─
+WIFI_IFACE=$(ip link | grep -o 'wlan[0-9]' | head -1)
+if [ -z "$WIFI_IFACE" ]; then
+    echo "WARNING: No WiFi interface found — skipping netplan config"
+else
+    cat > /etc/netplan/01-wifi-static.yaml <<EOF
+network:
+  version: 2
+  wifis:
+    ${WIFI_IFACE}:
+      dhcp4: false
+      addresses: [${ROCK_IP}/24]
+      nameservers:
+        addresses: [192.168.10.1]
+      routes:
+        - to: default
+          via: 192.168.10.1
+      access-points:
+        "${WIFI_SSID}": {}
+EOF
+    chmod 600 /etc/netplan/01-wifi-static.yaml
+fi
 
 echo ""
 echo "=== Done. Next steps ==="
