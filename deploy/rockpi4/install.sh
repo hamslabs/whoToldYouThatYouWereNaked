@@ -5,7 +5,6 @@
 set -euo pipefail
 
 WIFI_SSID="gwart"
-WIFI_PASSWORD="ImNotNaked"
 
 PAIR_ID=$(cat /etc/pair-id)
 PAIR_COUNT=$(cat /etc/pair-count)
@@ -22,22 +21,20 @@ if [ -z "$WIFI_IFACE" ]; then
     exit 1
 fi
 
-# Remove any existing netplan configs to avoid conflicts
-rm -f /etc/netplan/*.yaml
-
-cat > /etc/netplan/01-static.yaml <<EOF
+cat > /etc/netplan/01-wifi-static.yaml <<EOF
 network:
   version: 2
   wifis:
     ${WIFI_IFACE}:
       dhcp4: false
       addresses: [${ROCK_IP}/24]
-      gateway4: 192.168.10.1
       nameservers:
         addresses: [192.168.10.1]
+      routes:
+        - to: default
+          via: 192.168.10.1
       access-points:
-        "${WIFI_SSID}":
-          password: "${WIFI_PASSWORD}"
+        "${WIFI_SSID}": {}
 EOF
 chmod 600 /etc/netplan/01-static.yaml
 netplan apply
