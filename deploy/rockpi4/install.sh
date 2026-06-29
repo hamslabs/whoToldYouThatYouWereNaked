@@ -36,7 +36,7 @@ network:
       access-points:
         "${WIFI_SSID}": {}
 EOF
-chmod 600 /etc/netplan/01-static.yaml
+chmod 600 /etc/netplan/01-wifi-static.yaml
 netplan apply
 
 # ── Hostname ──────────────────────────────────────────────────────────────────
