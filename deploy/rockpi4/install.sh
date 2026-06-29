@@ -37,7 +37,7 @@ network:
         "${WIFI_SSID}": {}
 EOF
 chmod 600 /etc/netplan/01-wifi-static.yaml
-netplan apply
+# netplan apply runs on reboot — applying now would drop the Ethernet SSH session
 
 # ── Hostname ──────────────────────────────────────────────────────────────────
 hostnamectl set-hostname "$HOSTNAME"
