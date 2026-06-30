@@ -40,6 +40,7 @@ nmcli con up "$WIFI_SSID" || echo "WiFi not in range yet — will connect automa
 
 # ── Hostname ──────────────────────────────────────────────────────────────────
 hostnamectl set-hostname "$HOSTNAME"
+grep -qxF "127.0.1.1 $HOSTNAME" /etc/hosts || echo "127.0.1.1 $HOSTNAME" >> /etc/hosts
 
 # ── Install dependencies ──────────────────────────────────────────────────────
 apt-get update -qq

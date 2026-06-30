@@ -147,7 +147,7 @@ bash install.sh
 The script will:
 - Configure the static IP for this pair
 - Set the hostname (`rpi4-1`, `rockpi4-1`, etc.)
-- Install mediamtx (RPi4) or MPV (Rock Pi4)
+- Install mediamtx (RPi4) or GStreamer (Rock Pi4)
 - Install Tailscale
 - Install and enable all systemd services
 - Print next steps when done

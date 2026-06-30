@@ -16,6 +16,7 @@ echo "=== Rock Pi4 install — pair ${PAIR_ID} ==="
 
 # ── Hostname ──────────────────────────────────────────────────────────────────
 hostnamectl set-hostname "$HOSTNAME"
+grep -qxF "127.0.1.1 $HOSTNAME" /etc/hosts || echo "127.0.1.1 $HOSTNAME" >> /etc/hosts
 
 # ── Install dependencies ──────────────────────────────────────────────────────
 apt-get update -qq
