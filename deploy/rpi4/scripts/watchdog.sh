@@ -5,8 +5,14 @@
 
 set -uo pipefail
 
+EVENT_LOG=/var/log/watchdog-events
+
+log_restart() {
+    echo "$(date -Iseconds) $1" | tee -a "$EVENT_LOG"
+}
+
 result=$(curl -sf --max-time 5 http://localhost:9997/v3/paths/list 2>/dev/null) || {
-    echo "mediamtx API unreachable — restarting camera-stream"
+    log_restart "restarted camera-stream: mediamtx API unreachable"
     systemctl restart camera-stream
     exit 0
 }
@@ -25,7 +31,7 @@ except Exception as e:
 " 2>/dev/null)
 
 if [ "$tracks" = "[]" ] || [ -z "$tracks" ]; then
-    echo "No active tracks reported by mediamtx — restarting camera-stream"
+    log_restart "restarted camera-stream: no active tracks"
     systemctl restart camera-stream
 else
     echo "Stream healthy: tracks=${tracks}"

@@ -14,6 +14,8 @@
   .down { color: #c44; }
   .row-pair td:first-child { color: #888; font-size: 0.85rem; padding-top: 1rem; }
   #updated { color: #555; font-size: 0.8rem; margin-top: 1.5rem; }
+  .restarts { cursor: default; }
+  .restart-list { color: #888; font-size: 0.8rem; margin-top: 0.3rem; line-height: 1.5; }
 </style>
 </head>
 <body>
@@ -26,6 +28,7 @@
       <th>Stream</th>
       <th>Temp</th>
       <th>Uptime</th>
+      <th>Restarts</th>
       <th>Error</th>
     </tr>
   </thead>
@@ -40,6 +43,15 @@ function fmt_uptime(s) {
   return [h, m, sec].map(x => String(x).padStart(2, '0')).join(':');
 }
 
+function fmt_restarts(events) {
+  if (!events || events.length === 0) return '<span style="color:#555">0</span>';
+  const count = events.length;
+  const color = count >= 3 ? '#c44' : count >= 1 ? '#ca4' : '#555';
+  const lines = events.map(e => `<div>${e}</div>`).join('');
+  return `<span class="restarts" style="color:${color}">${count}</span>`
+       + `<div class="restart-list">${lines}</div>`;
+}
+
 function render(data) {
   const pairs = data._pair_count || 6;
   const tbody = document.getElementById('tbody');
@@ -49,7 +61,7 @@ function render(data) {
     const rpi = data[`rpi4-${i}`] || {};
     const rock = data[`rockpi4-${i}`] || {};
 
-    rows.push(`<tr class="row-pair"><td colspan="6">Pair ${i}</td></tr>`);
+    rows.push(`<tr class="row-pair"><td colspan="7">Pair ${i}</td></tr>`);
 
     for (const [label, d] of [['RPi4', rpi], ['Rock Pi4', rock]]) {
       const up = d.stream_up;
@@ -58,6 +70,7 @@ function render(data) {
       const tempColor = t == null ? '#555' : t >= 80 ? '#c44' : t >= 70 ? '#ca4' : '#aaa';
       const temp = t != null ? `<span style="color:${tempColor}">${t}°C</span>` : '—';
       const uptime = fmt_uptime(d.uptime_s);
+      const restarts = fmt_restarts(d.recent_restarts);
       const err = d.last_error || d.error || '';
       rows.push(`<tr>
         <td></td>
@@ -65,6 +78,7 @@ function render(data) {
         <td>${status}</td>
         <td>${temp}</td>
         <td>${uptime}</td>
+        <td>${restarts}</td>
         <td style="color:#a44;font-size:0.85rem">${err}</td>
       </tr>`);
     }

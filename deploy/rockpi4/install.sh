@@ -29,7 +29,7 @@ grep -qxF "127.0.1.1 $HOSTNAME" /etc/hosts || echo "127.0.1.1 $HOSTNAME" >> /etc
 
 # ── Install dependencies ──────────────────────────────────────────────────────
 apt-get update -qq
-apt-get install -y -qq python3 socat curl \
+apt-get install -y -qq python3 curl \
     gstreamer1.0-tools gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
     gstreamer1.0-plugins-bad gstreamer1.0-libav
 

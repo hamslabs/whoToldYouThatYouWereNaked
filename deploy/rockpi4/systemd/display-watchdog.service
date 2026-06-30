@@ -1,5 +1,5 @@
 [Unit]
-Description=MPV stream health check (one-shot)
+Description=GStreamer stream health check (one-shot)
 After=display-stream.service
 
 [Service]

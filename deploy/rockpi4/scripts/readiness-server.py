@@ -14,6 +14,15 @@ from pathlib import Path
 PORT = 7777
 PAIR_ID = Path("/etc/pair-id").read_text().strip()
 BOOT_TIME = time.time()
+EVENT_LOG = Path("/var/log/watchdog-events")
+
+
+def get_recent_events(n=5):
+    try:
+        lines = EVENT_LOG.read_text().splitlines()
+        return lines[-n:] if lines else []
+    except Exception:
+        return []
 
 
 def get_cpu_temp():
@@ -55,6 +64,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "uptime_s": int(time.time() - BOOT_TIME),
                 "cpu_temp_c": get_cpu_temp(),
                 "last_error": last_error,
+                "recent_restarts": get_recent_events(),
             }
             body = json.dumps(payload).encode()
             self._respond(200, "application/json", body)

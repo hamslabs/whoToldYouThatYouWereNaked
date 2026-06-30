@@ -18,6 +18,17 @@ PAIR_ID = Path("/etc/pair-id").read_text().strip()
 BOOT_TIME = time.time()
 
 
+EVENT_LOG = Path("/var/log/watchdog-events")
+
+
+def get_recent_events(n=5):
+    try:
+        lines = EVENT_LOG.read_text().splitlines()
+        return lines[-n:] if lines else []
+    except Exception:
+        return []
+
+
 def get_cpu_temp():
     try:
         return round(int(Path("/sys/class/thermal/thermal_zone0/temp").read_text()) / 1000, 1)
@@ -63,6 +74,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "fps": fps,
                 "bitrate_kbps": bitrate_kbps,
                 "last_error": last_error,
+                "recent_restarts": get_recent_events(),
             }
             body = json.dumps(payload).encode()
             self._respond(200, "application/json", body)
