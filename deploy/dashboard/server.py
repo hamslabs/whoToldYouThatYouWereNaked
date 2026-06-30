@@ -9,9 +9,9 @@ Usage: python3 server.py [--port 8080]
 """
 
 import argparse
+import concurrent.futures
 import http.server
 import json
-import os
 import threading
 import time
 import urllib.request
@@ -42,16 +42,20 @@ def fetch_status(url):
 def poll_loop():
     while True:
         pair_count = get_pair_count()
-        results = {}
+        targets = {}
         for i in range(1, pair_count + 1):
-            rpi_url = f"http://192.168.10.1{i}:7777/status"
-            rock_url = f"http://192.168.10.2{i}:7777/status"
-            results[f"rpi4-{i}"] = fetch_status(rpi_url)
-            results[f"rockpi4-{i}"] = fetch_status(rock_url)
+            targets[f"rpi4-{i}"]    = f"http://192.168.10.1{i}:7777/status"
+            targets[f"rockpi4-{i}"] = f"http://192.168.10.2{i}:7777/status"
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=len(targets)) as ex:
+            futures = {key: ex.submit(fetch_status, url) for key, url in targets.items()}
+        results = {key: fut.result() for key, fut in futures.items()}
+
+        results["_updated"] = time.time()
+        results["_pair_count"] = pair_count
         with CACHE_LOCK:
+            STATUS_CACHE.clear()
             STATUS_CACHE.update(results)
-            STATUS_CACHE["_updated"] = time.time()
-            STATUS_CACHE["_pair_count"] = pair_count
         time.sleep(POLL_INTERVAL)
 
 
