@@ -8,7 +8,7 @@ Type=simple
 ExecStartPre=/bin/sh -c 'echo 0 > /sys/class/vtconsole/vtcon1/bind && sleep 1'
 ExecStartPre=/usr/local/bin/display-start.sh
 ExecStart=/bin/bash -c 'PAIR_ID=$(cat /etc/pair-id); exec gst-launch-1.0 \
-    rtspsrc location=rtsp://192.168.10.1${PAIR_ID}:8554/stream latency=200 \
+    rtspsrc location=rtsp://192.168.10.1$${PAIR_ID}:8554/stream latency=200 \
     ! rtph264depay \
     ! h264parse \
     ! v4l2slh264dec \
