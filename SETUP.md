@@ -30,51 +30,39 @@ Already in `images/`:
 
 ## Step 2 — Flash the SD cards
 
-Do one card at a time. Insert the SD card, then find its disk number:
+Two scripts handle this. Both live in `deploy/` and are run from the repo root. Do one card at a time.
 
-```bash
-diskutil list
-```
+### Variables at the top of each script
 
-Look for your SD card by size (e.g. `32.0 GB`). Note the disk number — it will be something like `/dev/disk2`. **Do not confuse it with your Mac's internal drive.**
+| Variable | Default | What it is |
+|---|---|---|
+| `DISK` | `disk5` | Mac disk number for the SD card — find it with `diskutil list` |
+| `USER` | `gwart` | Linux username created on the RPi4 (RPi4 script only) |
+| `PASSWORD` | `snowden` | Password for that user (RPi4 script only) |
+
+Change `DISK` if your SD card reader shows up as a different number. `USER` and `PASSWORD` set the credentials you'll SSH in with on the RPi4.
 
 ### Flash RPi4 card
 
-```bash
-# Unmount (don't eject yet)
-diskutil unmountDisk /dev/disk2
-
-# Flash — replace disk2 with your actual disk number
-xzcat images/rpi4-os-lite-arm64.img.xz | sudo dd of=/dev/rdisk2 bs=4m
-
-# Press Ctrl+T at any time to see progress
-```
-
-After `dd` finishes, a volume called `bootfs` mounts on your Mac (FAT32 boot partition). Enable SSH and create a user account — **there is no default `pi` user since Bullseye (April 2022)**:
+Insert the SD card, confirm `DISK` is correct, then:
 
 ```bash
-# Enable SSH on first boot
-touch /Volumes/bootfs/ssh
-
-# Create a user account (skip this if you used Raspberry Pi Imager's Advanced Options)
-echo 'mypassword' | openssl passwd -6 -stdin   # copy the output hash
-echo 'myuser:$6$...<paste hash here>...' > /Volumes/bootfs/userconf
+bash deploy/flash-rpi4.sh
 ```
 
-Then eject:
-```bash
-diskutil eject /dev/disk2
-```
+This flashes the image, enables SSH, and writes a `userconf` file so the `gwart` account exists on first boot — no extra manual steps.
 
 ### Flash Rock Pi4 card
 
+Swap cards, then:
+
 ```bash
-diskutil unmountDisk /dev/disk2
-xzcat images/armbian-rockpi4-plus-trixie-minimal.img.xz | sudo dd of=/dev/rdisk2 bs=4m
-diskutil eject /dev/disk2
+bash deploy/flash-rockpi4.sh
 ```
 
-> Armbian has SSH enabled by default — no extra step needed.
+Armbian SSH is enabled by default. On first login (`root` / `1234`) Armbian's setup wizard will prompt for a new root password and offer to create a user — create `gwart` with password `snowden` when asked.
+
+> **Finding your disk number:** run `diskutil list` and look for your SD card by size (e.g. `32.0 GB`). Never use your Mac's internal drive (`disk0`).
 
 ---
 
@@ -96,42 +84,29 @@ Or check your router's DHCP client list.
 
 ### SSH into RPi4
 
-Use the username and password you set via Raspberry Pi Imager or the `userconf` file at flash time.
-
 ```bash
-ssh <username>@<rpi4-ip>
-```
-
-Once in:
-```bash
-echo 1 | sudo tee /etc/pair-id      # change 1 to the pair number (1–6)
-echo 6 | sudo tee /etc/pair-count   # total number of pairs you're deploying
+ssh gwart@<rpi4-ip>   # password: snowden
 ```
 
 ### SSH into Rock Pi4
 
-Default credentials: user `root`, password `1234`. Armbian will force a password change on first login — set something and note it.
+Default credentials on a fresh Armbian flash: `root` / `1234`. The first-login wizard forces a password change and offers to create a user — create `gwart` / `snowden` when prompted.
 
 ```bash
-ssh root@<rockpi4-ip>
-```
-
-Once in:
-```bash
-echo 1 > /etc/pair-id      # change 1 to the pair number (1–6)
-echo 6 > /etc/pair-count
+ssh gwart@<rockpi4-ip>   # or root if gwart not yet created
 ```
 
 ---
 
 ## Step 4 — Run install.sh
 
-On **each board**, clone this repo and run the install script:
+On **each board**, clone the repo, set the pair ID, then run the install script:
 
 ### RPi4
 
 ```bash
 git clone https://github.com/hamslabs/whoToldYouThatYouWereNaked /opt/newsystem
+sudo bash /opt/newsystem/deploy/set-pair.sh 1 6   # pair 1 of 6
 cd /opt/newsystem/deploy/rpi4
 sudo bash install.sh
 ```
@@ -140,6 +115,7 @@ sudo bash install.sh
 
 ```bash
 git clone https://github.com/hamslabs/whoToldYouThatYouWereNaked /opt/newsystem
+bash /opt/newsystem/deploy/set-pair.sh 1 6   # pair 1 of 6
 cd /opt/newsystem/deploy/rockpi4
 bash install.sh
 ```
