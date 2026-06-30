@@ -106,7 +106,7 @@ On **each board**, clone the repo, set the pair ID, then run the install script:
 
 ```bash
 git clone https://github.com/hamslabs/whoToldYouThatYouWereNaked /opt/newsystem
-sudo bash /opt/newsystem/deploy/set-pair.sh 1 6   # pair 1 of 6
+sudo bash /opt/newsystem/deploy/set-pair.sh 1 6   # first arg: pair number, second arg: total pairs
 cd /opt/newsystem/deploy/rpi4
 sudo bash install.sh
 ```
@@ -115,12 +115,14 @@ sudo bash install.sh
 
 ```bash
 git clone https://github.com/hamslabs/whoToldYouThatYouWereNaked /opt/newsystem
-bash /opt/newsystem/deploy/set-pair.sh 1 6   # pair 1 of 6
+bash /opt/newsystem/deploy/set-pair.sh 1 6   # first arg: pair number, second arg: total pairs
 cd /opt/newsystem/deploy/rockpi4
 bash install.sh
 ```
 
-The script will:
+`set-pair.sh` takes two integers and writes them to `/etc/pair-id` and `/etc/pair-count`. These files drive everything that's pair-specific: the static IP (`192.168.10.1N` / `192.168.10.2N`), the hostname (`rpi4-N` / `rockpi4-N`), and the RTSP URL the Rock Pi4 connects to. Change the first argument for each physical pair you deploy (1–6). The second argument stays the same for all boards in a deployment.
+
+`install.sh` will then:
 - Configure the static IP for this pair
 - Set the hostname (`rpi4-1`, `rockpi4-1`, etc.)
 - Install mediamtx (RPi4) or GStreamer (Rock Pi4)
