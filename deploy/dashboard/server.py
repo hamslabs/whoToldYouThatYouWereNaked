@@ -84,11 +84,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=8080)
+    parser.add_argument("--host", default="127.0.0.1")
     args = parser.parse_args()
 
     t = threading.Thread(target=poll_loop, daemon=True)
     t.start()
 
-    print(f"Dashboard server listening on :{args.port}")
-    server = http.server.HTTPServer(("", args.port), Handler)
+    print(f"Dashboard at http://{args.host}:{args.port}")
+    server = http.server.HTTPServer((args.host, args.port), Handler)
     server.serve_forever()
