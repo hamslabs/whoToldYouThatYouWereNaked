@@ -225,8 +225,8 @@ sudo systemctl stop camera-stream
 sleep 6
 systemctl status camera-stream   # expect active (running)
 
-# Test 2: kill MPV on Rock Pi4 — should restart within 5s
-sudo kill $(pidof mpv)
+# Test 2: kill GStreamer on Rock Pi4 — should restart within 5s
+sudo systemctl kill display-stream
 sleep 6
 systemctl status display-stream  # expect active (running)
 ```
@@ -266,8 +266,8 @@ Make sure the iPhone is plugged into the router before running install.sh. The c
 **SSH times out after static IP is set**
 Update your SSH target from the old DHCP address to the static IP from the table above.
 
-**MPV shows black screen but service is running**
-Stream isn't up yet. Check RPi4 camera-stream status. Rock Pi4 will display video as soon as RPi4's RTSP stream goes live — MPV reconnects automatically.
+**Rock Pi4 shows black screen but service is running**
+Stream isn't up yet. Check RPi4 camera-stream status. Rock Pi4 will display video as soon as RPi4's RTSP stream goes live — GStreamer reconnects automatically.
 
 **Watchdog keeps restarting the service**
 Check journal logs: `journalctl -u camera-stream -n 50` or `journalctl -u display-stream -n 50`.
