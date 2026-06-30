@@ -19,7 +19,9 @@ hostnamectl set-hostname "$HOSTNAME"
 
 # ── Install dependencies ──────────────────────────────────────────────────────
 apt-get update -qq
-apt-get install -y -qq mpv python3 socat curl
+apt-get install -y -qq python3 socat curl \
+    gstreamer1.0-tools gstreamer1.0-plugins-base gstreamer1.0-plugins-good \
+    gstreamer1.0-plugins-bad gstreamer1.0-libav
 
 # ── Install Tailscale ─────────────────────────────────────────────────────────
 curl -fsSL https://tailscale.com/install.sh | sh

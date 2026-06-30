@@ -1,5 +1,5 @@
 [Unit]
-Description=HDMI display stream (MPV via DRM)
+Description=HDMI display stream (GStreamer via kmssink)
 After=network-online.target readiness-server.service
 Wants=network-online.target
 
@@ -7,18 +7,13 @@ Wants=network-online.target
 Type=simple
 ExecStartPre=/bin/sh -c 'echo 0 > /sys/class/vtconsole/vtcon1/bind && sleep 1'
 ExecStartPre=/usr/local/bin/display-start.sh
-ExecStart=/bin/bash -c 'PAIR_ID=$(cat /etc/pair-id); exec mpv \
-    rtsp://192.168.10.1$${PAIR_ID}:8554/stream \
-    --vo=drm \
-    --drm-device=/dev/dri/card0 \
-    --drm-connector=HDMI-A-1 \
-    --fullscreen \
-    --profile=low-latency \
-    --cache=no \
-    --rtsp-transport=tcp \
-    --loop=inf \
-    --keep-open=yes \
-    --input-ipc-server=/tmp/mpvsocket'
+ExecStart=/bin/bash -c 'PAIR_ID=$(cat /etc/pair-id); exec gst-launch-1.0 \
+    rtspsrc location=rtsp://192.168.10.1${PAIR_ID}:8554/stream latency=200 \
+    ! rtph264depay \
+    ! h264parse \
+    ! v4l2slh264dec \
+    ! videoconvert \
+    ! kmssink connector-id=54'
 Restart=always
 RestartSec=5
 StandardOutput=journal
