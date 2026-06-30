@@ -1,8 +1,8 @@
-api:
-  address: :9997
+api: true
+apiAddress: :9997
 
-rtsp:
-  address: :8554
+rtsp: true
+rtspAddress: :8554
 
 paths:
   stream:
