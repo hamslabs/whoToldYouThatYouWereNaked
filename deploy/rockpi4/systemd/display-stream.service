@@ -9,6 +9,7 @@ StandardInput=tty
 TTYPath=/dev/tty1
 TTYReset=yes
 TTYVHangup=yes
+ExecStartPre=/bin/sh -c 'echo 0 > /sys/class/vtconsole/vtcon1/bind'
 ExecStartPre=/usr/local/bin/display-start.sh
 ExecStart=/bin/bash -c 'PAIR_ID=$(cat /etc/pair-id); exec mpv \
     rtsp://192.168.10.1$${PAIR_ID}:8554/stream \
