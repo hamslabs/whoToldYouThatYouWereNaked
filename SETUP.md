@@ -50,10 +50,15 @@ xzcat images/rpi4-os-lite-arm64.img.xz | sudo dd of=/dev/rdisk2 bs=4m
 # Press Ctrl+T at any time to see progress
 ```
 
-After `dd` finishes, a volume called `bootfs` mounts on your Mac (FAT32 boot partition). Enable SSH on first boot:
+After `dd` finishes, a volume called `bootfs` mounts on your Mac (FAT32 boot partition). Enable SSH and create a user account — **there is no default `pi` user since Bullseye (April 2022)**:
 
 ```bash
+# Enable SSH on first boot
 touch /Volumes/bootfs/ssh
+
+# Create a user account (skip this if you used Raspberry Pi Imager's Advanced Options)
+echo 'mypassword' | openssl passwd -6 -stdin   # copy the output hash
+echo 'myuser:$6$...<paste hash here>...' > /Volumes/bootfs/userconf
 ```
 
 Then eject:
@@ -91,10 +96,10 @@ Or check your router's DHCP client list.
 
 ### SSH into RPi4
 
-Default credentials: user `pi`, password `raspberry` (or whatever you set in Raspberry Pi Imager).
+Use the username and password you set via Raspberry Pi Imager or the `userconf` file at flash time.
 
 ```bash
-ssh pi@<rpi4-ip>
+ssh <username>@<rpi4-ip>
 ```
 
 Once in:
@@ -126,16 +131,16 @@ On **each board**, clone this repo and run the install script:
 ### RPi4
 
 ```bash
-git clone https://github.com/hamslabs/whoToldYouThatYouWereNaked /tmp/newsystem
-cd /tmp/newsystem/deploy/rpi4
+git clone https://github.com/hamslabs/whoToldYouThatYouWereNaked /opt/newsystem
+cd /opt/newsystem/deploy/rpi4
 sudo bash install.sh
 ```
 
 ### Rock Pi4
 
 ```bash
-git clone https://github.com/hamslabs/whoToldYouThatYouWereNaked /tmp/newsystem
-cd /tmp/newsystem/deploy/rockpi4
+git clone https://github.com/hamslabs/whoToldYouThatYouWereNaked /opt/newsystem
+cd /opt/newsystem/deploy/rockpi4
 bash install.sh
 ```
 
@@ -239,8 +244,8 @@ For each additional pair, repeat Steps 2–6 with the pair number incremented. T
 From any board or laptop on the Tailscale network:
 
 ```bash
-git clone https://github.com/hamslabs/whoToldYouThatYouWereNaked /tmp/newsystem
-cd /tmp/newsystem/deploy/dashboard
+git clone https://github.com/hamslabs/whoToldYouThatYouWereNaked /opt/newsystem
+cd /opt/newsystem/deploy/dashboard
 python3 server.py --port 8080
 ```
 
