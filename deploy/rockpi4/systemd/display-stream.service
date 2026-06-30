@@ -9,6 +9,8 @@ ExecStartPre=/usr/local/bin/display-start.sh
 ExecStart=/bin/bash -c 'PAIR_ID=$(cat /etc/pair-id); exec mpv \
     rtsp://192.168.10.1$${PAIR_ID}:8554/stream \
     --vo=drm \
+    --drm-device=/dev/dri/card0 \
+    --drm-connector=HDMI-A-1 \
     --fullscreen \
     --profile=low-latency \
     --cache=no \
