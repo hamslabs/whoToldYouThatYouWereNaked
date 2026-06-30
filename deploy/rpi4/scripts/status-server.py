@@ -18,6 +18,13 @@ PAIR_ID = Path("/etc/pair-id").read_text().strip()
 BOOT_TIME = time.time()
 
 
+def get_cpu_temp():
+    try:
+        return round(int(Path("/sys/class/thermal/thermal_zone0/temp").read_text()) / 1000, 1)
+    except Exception:
+        return None
+
+
 def get_mediamtx_status():
     try:
         with urllib.request.urlopen(
@@ -52,6 +59,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 "role": "rpi4",
                 "stream_up": stream_up,
                 "uptime_s": int(time.time() - BOOT_TIME),
+                "cpu_temp_c": get_cpu_temp(),
                 "fps": fps,
                 "bitrate_kbps": bitrate_kbps,
                 "last_error": last_error,

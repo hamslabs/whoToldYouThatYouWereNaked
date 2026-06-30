@@ -24,7 +24,7 @@
       <th>Pair</th>
       <th>Board</th>
       <th>Stream</th>
-      <th>FPS</th>
+      <th>Temp</th>
       <th>Uptime</th>
       <th>Error</th>
     </tr>
@@ -54,14 +54,16 @@ function render(data) {
     for (const [label, d] of [['RPi4', rpi], ['Rock Pi4', rock]]) {
       const up = d.stream_up;
       const status = up ? '<span class="up">● UP</span>' : '<span class="down">● DOWN</span>';
-      const fps = d.fps != null ? d.fps.toFixed(1) : '—';
+      const t = d.cpu_temp_c;
+      const tempColor = t == null ? '#555' : t >= 80 ? '#c44' : t >= 70 ? '#ca4' : '#aaa';
+      const temp = t != null ? `<span style="color:${tempColor}">${t}°C</span>` : '—';
       const uptime = fmt_uptime(d.uptime_s);
       const err = d.last_error || d.error || '';
       rows.push(`<tr>
         <td></td>
         <td>${label}</td>
         <td>${status}</td>
-        <td>${fps}</td>
+        <td>${temp}</td>
         <td>${uptime}</td>
         <td style="color:#a44;font-size:0.85rem">${err}</td>
       </tr>`);
