@@ -4,6 +4,11 @@
 
 set -euo pipefail
 
+if ! command -v nmcli &>/dev/null; then
+    echo "ERROR: nmcli not found. Are you on the right board? This script is for RPi4 (Raspberry Pi OS)."
+    exit 1
+fi
+
 WIFI_SSID="gwart"
 
 PAIR_ID=$(cat /etc/pair-id)

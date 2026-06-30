@@ -4,6 +4,11 @@
 
 set -euo pipefail
 
+if ! command -v netplan &>/dev/null && [ ! -d /etc/netplan ]; then
+    echo "ERROR: This doesn't look like an Armbian/netplan system. Are you on the right board?"
+    exit 1
+fi
+
 WIFI_SSID="gwart"
 
 PAIR_ID=$(cat /etc/pair-id)
