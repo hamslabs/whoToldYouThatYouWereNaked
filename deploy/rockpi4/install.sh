@@ -19,6 +19,10 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "=== Rock Pi4 install — pair ${PAIR_ID} ==="
 
+# ── Passwordless sudo for gwart ───────────────────────────────────────────────
+echo 'gwart ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/gwart
+chmod 440 /etc/sudoers.d/gwart
+
 # ── Hostname ──────────────────────────────────────────────────────────────────
 hostnamectl set-hostname "$HOSTNAME"
 grep -qxF "127.0.1.1 $HOSTNAME" /etc/hosts || echo "127.0.1.1 $HOSTNAME" >> /etc/hosts
