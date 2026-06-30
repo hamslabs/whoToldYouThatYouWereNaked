@@ -37,9 +37,10 @@ apt-get install -y -qq python3 socat curl \
 curl -fsSL https://tailscale.com/install.sh | sh
 
 # ── Scripts ───────────────────────────────────────────────────────────────────
-install -m 755 "${SCRIPT_DIR}/scripts/readiness-server.py" /usr/local/bin/readiness-server.py
-install -m 755 "${SCRIPT_DIR}/scripts/display-start.sh"    /usr/local/bin/display-start.sh
-install -m 755 "${SCRIPT_DIR}/scripts/watchdog.sh"         /usr/local/bin/display-watchdog.sh
+cp "${SCRIPT_DIR}/scripts/readiness-server.py" /usr/local/bin/readiness-server.py
+cp "${SCRIPT_DIR}/scripts/display-start.sh"    /usr/local/bin/display-start.sh
+cp "${SCRIPT_DIR}/scripts/watchdog.sh"         /usr/local/bin/display-watchdog.sh
+chmod 755 /usr/local/bin/readiness-server.py /usr/local/bin/display-start.sh /usr/local/bin/display-watchdog.sh
 
 # ── systemd units ─────────────────────────────────────────────────────────────
 cp "${SCRIPT_DIR}/systemd/"*.service /etc/systemd/system/

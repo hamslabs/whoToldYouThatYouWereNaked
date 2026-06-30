@@ -58,7 +58,8 @@ TARBALL="mediamtx_${MEDIAMTX_VERSION}_linux_${ARCH}.tar.gz"
 curl -fsSL "https://github.com/bluenviron/mediamtx/releases/download/${MEDIAMTX_VERSION}/${TARBALL}" \
     -o /tmp/mediamtx.tar.gz
 tar -xzf /tmp/mediamtx.tar.gz -C /tmp mediamtx
-install -m 755 /tmp/mediamtx /usr/local/bin/mediamtx
+cp /tmp/mediamtx /usr/local/bin/mediamtx
+chmod 755 /usr/local/bin/mediamtx
 rm -f /tmp/mediamtx.tar.gz /tmp/mediamtx
 
 # ── Install Tailscale ─────────────────────────────────────────────────────────
@@ -69,9 +70,10 @@ mkdir -p /etc/mediamtx
 cp "${SCRIPT_DIR}/config/mediamtx.yml" /etc/mediamtx/mediamtx.yml
 
 # ── Scripts ───────────────────────────────────────────────────────────────────
-install -m 755 "${SCRIPT_DIR}/scripts/camera-start.sh"   /usr/local/bin/camera-start.sh
-install -m 755 "${SCRIPT_DIR}/scripts/watchdog.sh"        /usr/local/bin/stream-watchdog.sh
-install -m 755 "${SCRIPT_DIR}/scripts/status-server.py"   /usr/local/bin/status-server.py
+cp "${SCRIPT_DIR}/scripts/camera-start.sh"  /usr/local/bin/camera-start.sh
+cp "${SCRIPT_DIR}/scripts/watchdog.sh"       /usr/local/bin/stream-watchdog.sh
+cp "${SCRIPT_DIR}/scripts/status-server.py"  /usr/local/bin/status-server.py
+chmod 755 /usr/local/bin/camera-start.sh /usr/local/bin/stream-watchdog.sh /usr/local/bin/status-server.py
 
 # ── Substitute ROCK_IP placeholder in camera-start.sh ────────────────────────
 # (camera-start.sh reads /etc/pair-id at runtime, no sed needed)
