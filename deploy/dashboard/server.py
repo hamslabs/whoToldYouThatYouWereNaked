@@ -81,6 +81,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             try:
                 req = urllib.request.Request(url, method="POST", data=b"")
                 urllib.request.urlopen(req, timeout=3)
+                with CACHE_LOCK:
+                    if board in STATUS_CACHE:
+                        STATUS_CACHE[board]["recent_restarts"] = []
                 self._respond(200, "text/plain", b"OK\n")
             except Exception as e:
                 self._respond(502, "text/plain", str(e).encode())
