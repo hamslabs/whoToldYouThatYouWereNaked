@@ -225,6 +225,13 @@ Each board requires before running `install.sh`:
 1. `/etc/pair-id` — single digit 1–6
 2. `/etc/pair-count` — total number of pairs (5 or 6) — **needed by dashboard**
 3. WiFi credentials baked into OS image at flash time
+4. User account created at flash time — **no default `pi` user since Bullseye (April 2022)**. Use Raspberry Pi Imager's Advanced Options to set username/password, or add a `userconf` file to the boot partition:
+   ```bash
+   # Generate a SHA-512 hashed password
+   echo 'mypassword' | openssl passwd -6 -stdin
+   # Write to boot partition (adjust disk path as needed)
+   echo 'myuser:$6$...<hash>...' > /Volumes/bootfs/userconf
+   ```
 
 ### RPi4 `install.sh` steps
 
@@ -289,7 +296,7 @@ Stream traffic uses local IPs (`192.168.10.x`) — Tailscale never touches it. Z
 ## Verification
 
 1. Flash pair 1, set `/etc/pair-id=1` and `/etc/pair-count=1`, boot both boards.
-2. `ssh pi@192.168.10.11` → `systemctl status camera-stream` — expect `active (running)`.
+2. `ssh <username>@192.168.10.11` → `systemctl status camera-stream` — expect `active (running)`. (Use the username set via Imager or `userconf` at flash time — no default `pi` user.)
 3. `ssh user@192.168.10.21` → `systemctl status display-stream` — expect `active (running)`.
 4. HDMI on Rock Pi4 shows live 1080p video.
 5. **Watchdog test**: `systemctl stop camera-stream` on RPi4 → verify systemd restarts it within 5s.
