@@ -16,6 +16,9 @@
   #updated { color: #555; font-size: 0.8rem; margin-top: 1.5rem; }
   .restarts { cursor: default; }
   .restart-list { color: #888; font-size: 0.8rem; margin-top: 0.3rem; line-height: 1.5; }
+  .clear-btn { background: none; border: 1px solid #444; color: #666; font-size: 0.75rem;
+               cursor: pointer; padding: 0 0.4rem; border-radius: 3px; margin-left: 0.4rem; }
+  .clear-btn:hover { border-color: #888; color: #aaa; }
 </style>
 </head>
 <body>
@@ -43,13 +46,18 @@ function fmt_uptime(s) {
   return [h, m, sec].map(x => String(x).padStart(2, '0')).join(':');
 }
 
-function fmt_restarts(events) {
-  if (!events || events.length === 0) return '<span style="color:#555">0</span>';
-  const count = events.length;
+function fmt_restarts(events, boardKey) {
+  const count = events ? events.length : 0;
   const color = count >= 3 ? '#c44' : count >= 1 ? '#ca4' : '#555';
-  const lines = events.map(e => `<div>${e}</div>`).join('');
-  return `<span class="restarts" style="color:${color}">${count}</span>`
-       + `<div class="restart-list">${lines}</div>`;
+  const lines = (events || []).map(e => `<div>${e}</div>`).join('');
+  const clearBtn = `<button class="clear-btn" onclick="clearRestarts('${boardKey}')">clear</button>`;
+  return `<span class="restarts" style="color:${color}">${count}</span>${count > 0 ? clearBtn : ''}`
+       + (count > 0 ? `<div class="restart-list">${lines}</div>` : '');
+}
+
+async function clearRestarts(boardKey) {
+  await fetch(`/api/clear/${boardKey}`, { method: 'POST' });
+  poll();
 }
 
 function render(data) {
@@ -70,7 +78,8 @@ function render(data) {
       const tempColor = t == null ? '#555' : t >= 80 ? '#c44' : t >= 70 ? '#ca4' : '#aaa';
       const temp = t != null ? `<span style="color:${tempColor}">${t}°C</span>` : '—';
       const uptime = fmt_uptime(d.uptime_s);
-      const restarts = fmt_restarts(d.recent_restarts);
+      const boardKey = label === 'RPi4' ? `rpi4-${i}` : `rockpi4-${i}`;
+      const restarts = fmt_restarts(d.recent_restarts, boardKey);
       const err = d.last_error || d.error || '';
       rows.push(`<tr>
         <td></td>

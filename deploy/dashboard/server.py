@@ -66,6 +66,27 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass
 
+    def do_POST(self):
+        if self.path.startswith("/api/clear/"):
+            board = self.path[len("/api/clear/"):]
+            with CACHE_LOCK:
+                d = STATUS_CACHE.get(board, {})
+            pair_id = d.get("pair_id")
+            role = d.get("role")
+            if not pair_id or not role:
+                self._respond(404, "text/plain", b"Unknown board\n")
+                return
+            prefix = "1" if role == "rpi4" else "2"
+            url = f"http://192.168.10.{prefix}{pair_id}:7777/clear-restarts"
+            try:
+                req = urllib.request.Request(url, method="POST", data=b"")
+                urllib.request.urlopen(req, timeout=3)
+                self._respond(200, "text/plain", b"OK\n")
+            except Exception as e:
+                self._respond(502, "text/plain", str(e).encode())
+        else:
+            self._respond(404, "text/plain", b"Not found\n")
+
     def do_GET(self):
         if self.path == "/api/status":
             with CACHE_LOCK:

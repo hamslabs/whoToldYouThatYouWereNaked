@@ -52,6 +52,16 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass
 
+    def do_POST(self):
+        if self.path == "/clear-restarts":
+            try:
+                EVENT_LOG.write_text("")
+                self._respond(200, "text/plain", b"OK\n")
+            except Exception as e:
+                self._respond(500, "text/plain", str(e).encode())
+        else:
+            self._respond(404, "text/plain", b"Not found\n")
+
     def do_GET(self):
         if self.path == "/ready":
             self._respond(200, "text/plain", b"OK\n")
